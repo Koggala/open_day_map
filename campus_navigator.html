@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Open Day Navigator</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  html, body { margin:0; padding:0; height:100%; font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  #map { position:absolute; top:0; bottom:170px; left:0; right:0; }
+  #panel {
+    position:absolute; bottom:0; left:0; right:0; height:170px;
+    background:#111; color:#fff; box-sizing:border-box; padding:12px 16px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+    overflow-y:auto;
+  }
+  #panel h1 { font-size:15px; margin:0 0 6px; font-weight:600; }
+  #panel .stop {
+    display:flex; align-items:center; gap:10px; padding:6px 0;
+    border-bottom:1px solid #2a2a2a; font-size:14px;
+  }
+  #panel .stop:last-child { border-bottom:none; }
+  .dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+  .dist { margin-left:auto; color:#9ad; font-weight:600; font-size:13px; }
+  .status { color:#aaa; font-size:12px; margin-top:2px; }
+  .active .dot { box-shadow:0 0 0 4px rgba(255,255,255,0.15); }
+  #recenter {
+    position:absolute; bottom:180px; right:12px; z-index:500;
+    background:#fff; border:none; border-radius:50%; width:44px; height:44px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.4); font-size:20px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<button id="recenter" title="Center on me">📍</button>
+<div id="panel">
+  <h1>Open day — your route</h1>
+  <div id="stops"></div>
+  <div class="status" id="status">Locating you…</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ---- CONFIGURE YOUR STOPS HERE ----
+const stops = [
+  { name: "Start point", lat: 6.884323916848179, lng: 79.88400734718923, color: "#2ecc71" },
+  { name: "Block 18",    lat: 6.883201935734826, lng: 79.88565080898545, color: "#3498db" },
+  { name: "Block 19",    lat: 6.883007144611538, lng: 79.88568684667877, color: "#e74c3c" }
+];
+// ------------------------------------
+
+const map = L.map('map', { zoomControl: true }).setView([stops[0].lat, stops[0].lng], 17);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const stopMarkers = stops.map(s =>
+  L.circleMarker([s.lat, s.lng], { radius: 9, color: '#fff', weight: 2, fillColor: s.color, fillOpacity: 1 })
+    .addTo(map)
+    .bindPopup(s.name)
+);
+
+const stopsEl = document.getElementById('stops');
+stops.forEach((s, i) => {
+  const div = document.createElement('div');
+  div.className = 'stop';
+  div.id = 'stop-' + i;
+  div.innerHTML = `<div class="dot" style="background:${s.color}"></div><div>${s.name}</div><div class="dist" id="dist-${i}">–</div>`;
+  stopsEl.appendChild(div);
+});
+
+// ---- FIXED WALKING PATH (surveyed waypoints, in order) ----
+const fixedRoute = [
+  [6.884323916848179, 79.88400734718923], // Start
+  [6.884303204045581, 79.8841521422644],  // Turn 1
+  [6.883944530485595, 79.88410538862219], // Turn 2
+  [6.883611174816194, 79.88412664027774], // Turn 3
+  [6.883632273283235, 79.88445391577329], // Turn 4
+  [6.883257360846734, 79.88445119955958], // Turn 5
+  [6.883225406325399, 79.88505737878496], // Turn 6
+  [6.8830975882186,   79.88555626965186], // Turn 7 - Block 18 (Destination 2)
+  [6.883086936708129, 79.88547043896509], // After Block 18 - Turn 1
+  [6.882921838265519, 79.88547043896509], // Turn 2
+  [6.882905860993839, 79.88559918499524]  // Turn 3 - Block 19 (Destination 3)
+];
+// -------------------------------------------------------------
+
+let userMarker = null;
+let routeLine = null;
+const statusEl = document.getElementById('status');
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function drawRoute() {
+  routeLine = L.polyline(fixedRoute, { color: '#4a90e2', weight: 5, opacity: 0.85 }).addTo(map);
+  statusEl.textContent = 'Follow the blue line';
+}
+
+function updateDistances(lat, lng) {
+  stops.forEach((s, i) => {
+    const d = haversine(lat, lng, s.lat, s.lng);
+    document.getElementById('dist-' + i).textContent = d < 1000 ? Math.round(d) + ' m' : (d/1000).toFixed(1) + ' km';
+  });
+}
+
+function onLocation(lat, lng) {
+  if (!userMarker) {
+    userMarker = L.circleMarker([lat, lng], { radius: 8, color: '#fff', weight: 2, fillColor: '#ff5722', fillOpacity: 1 }).addTo(map);
+    map.setView([lat, lng], 17);
+  } else {
+    userMarker.setLatLng([lat, lng]);
+  }
+  updateDistances(lat, lng);
+}
+
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition(
+    pos => onLocation(pos.coords.latitude, pos.coords.longitude),
+    err => { statusEl.textContent = 'Location access denied — showing stops only'; },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+  );
+} else {
+  statusEl.textContent = 'Geolocation not supported on this device';
+}
+
+document.getElementById('recenter').onclick = () => {
+  if (userMarker) map.setView(userMarker.getLatLng(), 18);
+};
+
+// Draw the fixed walking path right away
+drawRoute();
+
+// Fit map to show the whole route initially
+const bounds = L.latLngBounds(fixedRoute);
+map.fitBounds(bounds, { padding: [40, 40] });
+</script>
+
+</body>
+</html>

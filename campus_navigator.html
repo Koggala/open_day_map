@@ -7,9 +7,9 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <style>
   html, body { margin:0; padding:0; height:100%; font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-  #map { position:absolute; top:0; bottom:170px; left:0; right:0; }
+  #map { position:absolute; top:0; bottom:210px; left:0; right:0; }
   #panel {
-    position:absolute; bottom:0; left:0; right:0; height:170px;
+    position:absolute; bottom:0; left:0; right:0; height:210px;
     background:#111; color:#fff; box-sizing:border-box; padding:12px 16px;
     box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
     overflow-y:auto;
@@ -25,7 +25,7 @@
   .status { color:#aaa; font-size:12px; margin-top:2px; }
   .active .dot { box-shadow:0 0 0 4px rgba(255,255,255,0.15); }
   #recenter {
-    position:absolute; bottom:180px; right:12px; z-index:500;
+    position:absolute; bottom:220px; right:12px; z-index:500;
     background:#fff; border:none; border-radius:50%; width:44px; height:44px;
     box-shadow:0 2px 6px rgba(0,0,0,0.4); font-size:20px; cursor:pointer;
   }
@@ -45,9 +45,9 @@
 <script>
 // ---- CONFIGURE YOUR STOPS HERE ----
 const stops = [
-  { name: "Start point", lat: 6.884323916848179, lng: 79.88400734718923, color: "#2ecc71" },
-  { name: "Block 18",    lat: 6.883201935734826, lng: 79.88565080898545, color: "#3498db" },
-  { name: "Block 19",    lat: 6.883007144611538, lng: 79.88568684667877, color: "#e74c3c" }
+  { name: "Start point", desc: "", lat: 6.884316218673081, lng: 79.8840587644507, color: "#2ecc71" },
+  { name: "Block 18", desc: "Microwave Lab, Microprocessor Lab, Computer Architecture Lab, Data Communication Lab", lat: 6.8831771860743665, lng: 79.8856123115309, color: "#3498db" },
+  { name: "Block 19", desc: "Analog Electronics Lab, Electrical Lab", lat: 6.882932228603584, lng: 79.8856354430063, color: "#e74c3c" }
 ];
 // ------------------------------------
 
@@ -60,7 +60,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const stopMarkers = stops.map(s =>
   L.circleMarker([s.lat, s.lng], { radius: 9, color: '#fff', weight: 2, fillColor: s.color, fillOpacity: 1 })
     .addTo(map)
-    .bindPopup(s.name)
+    .bindPopup(`<b>${s.name}</b>${s.desc ? '<br>' + s.desc : ''}`)
 );
 
 const stopsEl = document.getElementById('stops');
@@ -68,23 +68,25 @@ stops.forEach((s, i) => {
   const div = document.createElement('div');
   div.className = 'stop';
   div.id = 'stop-' + i;
-  div.innerHTML = `<div class="dot" style="background:${s.color}"></div><div>${s.name}</div><div class="dist" id="dist-${i}">–</div>`;
+  div.innerHTML = `<div class="dot" style="background:${s.color}"></div><div><div>${s.name}</div>${s.desc ? `<div style="font-size:11px;color:#999;">${s.desc}</div>` : ''}</div><div class="dist" id="dist-${i}">–</div>`;
   stopsEl.appendChild(div);
 });
 
 // ---- FIXED WALKING PATH (surveyed waypoints, in order) ----
 const fixedRoute = [
-  [6.884323916848179, 79.88400734718923], // Start
-  [6.884303204045581, 79.8841521422644],  // Turn 1
-  [6.883944530485595, 79.88410538862219], // Turn 2
-  [6.883611174816194, 79.88412664027774], // Turn 3
-  [6.883632273283235, 79.88445391577329], // Turn 4
-  [6.883257360846734, 79.88445119955958], // Turn 5
-  [6.883225406325399, 79.88505737878496], // Turn 6
-  [6.8830975882186,   79.88555626965186], // Turn 7 - Block 18 (Destination 2)
-  [6.883086936708129, 79.88547043896509], // After Block 18 - Turn 1
-  [6.882921838265519, 79.88547043896509], // Turn 2
-  [6.882905860993839, 79.88559918499524]  // Turn 3 - Block 19 (Destination 3)
+  [6.884316218673081, 79.8840587644507],  // Start
+  [6.884317550108446, 79.88410167979471], // Turn 1
+  [6.883942085185744, 79.88410436200367], // Turn 2
+  [6.883609225963296, 79.88414995955603], // Turn 3
+  [6.883612663147686, 79.88451847090853], // Turn 4
+  [6.883898620807937, 79.88451559056861], // Turn 5
+  [6.883835710137472, 79.88550930784335], // Turn 6
+  [6.8837556419993575, 79.88611705956791], // Turn 7
+  [6.883131256558228, 79.88602482284176], // Turn 8
+  [6.8831771860743665, 79.8856123115309], // Destination 2 - Block 18
+  [6.883181013533832, 79.88548637349832],  // Turn 9
+  [6.882937331885514, 79.88545296136724],  // Turn 10
+  [6.882932228603584, 79.8856354430063]    // Destination 3 - Block 19
 ];
 // -------------------------------------------------------------
 
